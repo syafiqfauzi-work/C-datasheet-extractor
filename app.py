@@ -10,8 +10,8 @@ import os
 from datetime import datetime
 
 # --- 1. SETTING TAJUK WEB ---
-st.set_page_config(page_title="RG Datasheet Analyzer (Capacitor)", page_icon="📄", layout="wide")
-st.title("📄 RG Datasheet Analyzer (Capacitor)")
+st.set_page_config(page_title="C* Datasheet Analyzer)", page_icon="📄", layout="wide")
+st.title("📄 C* Datasheet Analyzer")
 st.write("Upload a datasheet (PDF) and the AI will extract the key specifications.")
 
 file_path = __file__
