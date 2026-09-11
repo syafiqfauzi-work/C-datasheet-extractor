@@ -213,7 +213,7 @@ if uploaded_file is not None or spec_file is not None:
             
             # --- DEFINISI KATEGORI ---
             keys_top = ["Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)"]
-            keys_library = ["Length [mm]", "Width [mm]", "Package Type (EIA)", "Number of Pins"]
+            keys_library = ["Length (mm)", "Width (mm)", "Height (Max)", "Package Type (EIA)", "Pitch (Footprint) (mm)", "Number of Pins"]
             keys_processability = ["Kind of Mounting", "Washability", "Varnishability", "St. Solder (Standard Solder)", "Alt. Solder (Alternate Solder)", "Rep. Solder (Repair Solder)", "ESS Suitable", "Max Reflow Cycle (cycles)", "Max Reflow Time (s)", "Max Reflow Temp (°C)"]
             
             # --- DYNAMIC TECH PARAMETER BASED ON COMMODITY ---
