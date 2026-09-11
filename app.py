@@ -10,8 +10,8 @@ import os
 from datetime import datetime
 
 # --- 1. SETTING TAJUK WEB ---
-st.set_page_config(page_title="C* Datasheet Analyzer", page_icon="📄", layout="wide")
-st.title("📄 C* Datasheet Analyzer")
+st.set_page_config(page_title="RG Datasheet Analyzer (Capacitor)", page_icon="📄", layout="wide")
+st.title("📄 RG Datasheet Analyzer (Capacitor)")
 st.write("Upload a datasheet (PDF) and the AI will extract the key specifications.")
 
 file_path = __file__
@@ -98,7 +98,7 @@ if uploaded_file is not None or spec_file is not None:
             "Commodity Group", "Catalogue Group", "Manufacturer", "Designation",
             "Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", 
             "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)", 
-            "Length [mm]", "Width [mm]", "Height [mm]", "Package Type", "Package Type (EIA)",
+            "Length [mm]", "Width [mm]", "Height [mm]", "Height (Max)", "Package Type", "Package Type (EIA)", "Pitch (Footprint) (mm)",
             "Capacity [F]", "Tolerance [%]", "Voltage [V]", "Description", "Surface", "Additional Information",
             "Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Current [A]", "Inductance [H]",
             "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Resistance [Ohm]",
@@ -113,12 +113,13 @@ if uploaded_file is not None or spec_file is not None:
             - Do NOT use unescaped double quotes (") inside any text values. Use single quotes (') instead.
             - Do NOT include raw newline characters (\\n), carriage returns (\\r), or tabs (\\t).
             - FOR ALL KEYS: Return a nested JSON object with three fields: "value", "evidence", and "page".
+            - CRITICAL: If any information is missing or not found in the datasheet, strictly return "N/A" for the "value", "evidence", and "page" fields. Do NOT return null, None, or "unknown".
 
             [CAPACITOR SPECIFIC RULES]
             - FOR "Commodity Group": Select strictly ONE from this list: CC, CD, CE, CG, CH, CK, CL, CM, CN, CP, CS, CT, CV, CX, CB. 
-              (Hint: CC = miniature ceramic, CE = electrolytic, CG = mica, CK = film, CL = ceramic power, CS = suppression).
-            - FOR "Catalogue Group": Select strictly ONE: "Capacitors fixed", "Capacitor Electrolyt", "Capacitor mech. adjustable", or "Capacitor electr. adjustable".
-            - FOR "Manufacturer": Select exactly from this list: binder mpe GmbH, Dalicap Technology Co., Ltd., ebm-papst (Mulfingen) GmbH & Co. KG, Electronicon Kiondensatoren GmbH, Exxelia Group, HIGH ENERGY Corp., Holy Stone Enterprise Co., Ltd., Richard Jahre GmbH, Johanson Precision Corporation, K+B elektromechanische, Knowles Electronics, LLC, Kyocera AVX Components Ltd., MACOM Technology Solutions Holdings, Murata Manufacturing Co., Ltd, Nichicon Corporation, NIPPON CHEMI-CON CORPORATION, OXLEY DEVELOPMENTS, Panasonic Corporation, Presidio Components Inc., PSA Passive System Alliance Group, Rubycon Corporation, Samsung Group, Schlund GmbH, Spectrum Control, Inc., Syfer Technology Ltd., Taiyo Yuden Co., Ltd., TDK Corporation, TE Connectivity Ltd., Tronser GmbH, CTS Corporation, Vishay Intertechnology, Inc., Voltronics Corp., WIMA Spezialvertrieb elektronische, Yageo Corporation. If not found, return "Unknown".
+              (Hint: CC = miniature ceramic, CE = electrolytic, CG = mica, CK = film, CL = ceramic power, CS = suppression). If not found, return "N/A".
+            - FOR "Catalogue Group": Select strictly ONE: "Capacitors fixed", "Capacitor Electrolyt", "Capacitor mech. adjustable", or "Capacitor electr. adjustable". If not found, return "N/A".
+            - FOR "Manufacturer": Select exactly from this list: binder mpe GmbH, Dalicap Technology Co., Ltd., ebm-papst (Mulfingen) GmbH & Co. KG, Electronicon Kiondensatoren GmbH, Exxelia Group, HIGH ENERGY Corp., Holy Stone Enterprise Co., Ltd., Richard Jahre GmbH, Johanson Precision Corporation, K+B elektromechanische, Knowles Electronics, LLC, Kyocera AVX Components Ltd., MACOM Technology Solutions Holdings, Murata Manufacturing Co., Ltd, Nichicon Corporation, NIPPON CHEMI-CON CORPORATION, OXLEY DEVELOPMENTS, Panasonic Corporation, Presidio Components Inc., PSA Passive System Alliance Group, Rubycon Corporation, Samsung Group, Schlund GmbH, Spectrum Control, Inc., Syfer Technology Ltd., Taiyo Yuden Co., Ltd., TDK Corporation, TE Connectivity Ltd., Tronser GmbH, CTS Corporation, Vishay Intertechnology, Inc., Voltronics Corp., WIMA Spezialvertrieb elektronische, Yageo Corporation. If not found, return "N/A".
             - FOR "Designation": Construct a string following EXACTLY this format: [Capacity] [Tolerance] [Voltage] [Description] [Package Type EIA]. 
               * Example: "100NF 10% 250V X7T 1210". Format the capacity properly (e.g. 100NF, 10UF). Include the % for tolerance and V for voltage.
             - FOR "Capacity [F]": Extract the nominal capacitance value with unit (e.g., 100nF, 10uF).
@@ -183,18 +184,24 @@ if uploaded_file is not None or spec_file is not None:
             
             progress_bar.progress(90, text="Building UI tables and CSV report...")
             
+            # --- HELPER UNTUK BERSIHKAN NULL/UNKNOWN KEPADA N/A ---
+            def clean_na(val):
+                if val is None or str(val).strip().lower() in ["null", "none", "unknown", ""]:
+                    return "N/A"
+                return str(val)
+
             # --- ASINGKAN HEADER INFO ---
             designation_dict = extracted_data.pop("Designation", {})
-            designation_text = str(designation_dict.get("value", "N/A") if isinstance(designation_dict, dict) else designation_dict).upper()
+            designation_text = clean_na(designation_dict.get("value", "N/A") if isinstance(designation_dict, dict) else designation_dict).upper()
             
             mfg_dict = extracted_data.pop("Manufacturer", {})
-            manufacturer_text = str(mfg_dict.get("value", "Unknown") if isinstance(mfg_dict, dict) else mfg_dict)
+            manufacturer_text = clean_na(mfg_dict.get("value", "N/A") if isinstance(mfg_dict, dict) else mfg_dict)
             
             cat_dict = extracted_data.pop("Catalogue Group", {})
-            catalogue_text = str(cat_dict.get("value", "N/A") if isinstance(cat_dict, dict) else cat_dict)
+            catalogue_text = clean_na(cat_dict.get("value", "N/A") if isinstance(cat_dict, dict) else cat_dict)
             
             comm_dict = extracted_data.pop("Commodity Group", {})
-            commodity_text = str(comm_dict.get("value", "Unknown") if isinstance(comm_dict, dict) else comm_dict)
+            commodity_text = clean_na(comm_dict.get("value", "N/A") if isinstance(comm_dict, dict) else comm_dict)
 
             st.success("Extraction Complete!")
             progress_bar.progress(100, text="Done!")
@@ -213,7 +220,7 @@ if uploaded_file is not None or spec_file is not None:
             
             # --- DEFINISI KATEGORI ---
             keys_top = ["Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)"]
-            keys_library = ["Length (mm)", "Width (mm)", "Height (Max)", "Package Type (EIA)", "Pitch (Footprint) (mm)", "Number of Pins"]
+            keys_library = ["Length [mm]", "Width [mm]", "Height (Max)", "Package Type (EIA)", "Pitch (Footprint) (mm)", "Number of Pins"]
             keys_processability = ["Kind of Mounting", "Washability", "Varnishability", "St. Solder (Standard Solder)", "Alt. Solder (Alternate Solder)", "Rep. Solder (Repair Solder)", "ESS Suitable", "Max Reflow Cycle (cycles)", "Max Reflow Time (s)", "Max Reflow Temp (°C)"]
             
             # --- DYNAMIC TECH PARAMETER BASED ON COMMODITY ---
@@ -229,12 +236,20 @@ if uploaded_file is not None or spec_file is not None:
                 specs, values, units, evidences, pages = [], [], [], [], []
                 for key in keys_list:
                     item = data_dict.get(key, {"value": "N/A", "evidence": "N/A", "page": "N/A"})
-                    if isinstance(item, str):
+                    
+                    if item is None:
+                        val, ev, pg = "N/A", "N/A", "N/A"
+                    elif isinstance(item, str):
                         val, ev, pg = item, "N/A", "N/A"
                     else:
-                        val = item.get("value", "N/A")
-                        ev = item.get("evidence", "N/A")
-                        pg = item.get("page", "N/A")
+                        val = str(item.get("value", "N/A")) if item.get("value") is not None else "N/A"
+                        ev = str(item.get("evidence", "N/A")) if item.get("evidence") is not None else "N/A"
+                        pg = str(item.get("page", "N/A")) if item.get("page") is not None else "N/A"
+                        
+                    # Filter output akhir
+                    val = clean_na(val)
+                    ev = clean_na(ev)
+                    pg = clean_na(pg)
                         
                     # Extract Units from Brackets e.g., "Capacity [F]" -> Key: "Capacity", Unit: "F"
                     unit_str = "-"
@@ -250,6 +265,7 @@ if uploaded_file is not None or spec_file is not None:
                     elif "(%)" in key: clean_key, unit_str = key.replace(" (%)", ""), "%"
                     elif "(s)" in key: clean_key, unit_str = key.replace(" (s)", ""), "s"
                     elif "(cycles)" in key: clean_key, unit_str = key.replace(" (cycles)", ""), "cycles"
+                    elif "(Footprint)" in key: clean_key, unit_str = key.replace(" (Footprint)", ""), "mm" # Khas untuk Pitch
                     
                     specs.append(clean_key)
                     values.append(val)
