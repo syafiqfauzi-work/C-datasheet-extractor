@@ -162,6 +162,7 @@ if uploaded_file is not None or spec_file is not None:
               * CG (Mica): If Leaded types -> "W", "L". If SMD types -> "K", "K".
               * CK (Plastic film): If SMD with coating -> "W", "L". If all others -> "K", "K".
               * CT (Trimmer): If with sealing disk -> "K", "K". If all others -> "N", "N".
+            - FOR "ESS Suitable": Evaluate the extracted Operating Temperature (Min) and (Max). If the operating temperature goes OUTSIDE the standard range (e.g., Min is colder than -20°C OR Max is hotter than 75°C), return "ESS released". If both temperatures fall strictly WITHIN -20°C to 75°C, return "not ESS released". If no Operating Temperature information is available, return "N/A".
             
             Datasheet Text:
             -----------------
