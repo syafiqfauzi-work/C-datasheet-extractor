@@ -208,20 +208,48 @@ if uploaded_file is not None or spec_file is not None:
             
             progress_bar.progress(90, text="Building UI tables and CSV report...")
             
-            # --- HELPER UNTUK BERSIHKAN NULL/UNKNOWN KEPADA N/A ---
+           # --- HELPER UNTUK BERSIHKAN NULL/UNKNOWN KEPADA N/A ---
             def clean_na(val):
                 if val is None or str(val).strip().lower() in ["null", "none", "unknown", ""]:
                     return "N/A"
                 return str(val)
 
-           # --- PYTHON MATH OVERRIDE UNTUK PITCH ---
+            # --- ASINGKAN HEADER INFO ---
+            designation_dict = extracted_data.pop("Designation", {})
+            designation_text = clean_na(designation_dict.get("value", "N/A") if isinstance(designation_dict, dict) else designation_dict).upper()
+            
+            mfg_dict = extracted_data.pop("Manufacturer", {})
+            manufacturer_text = clean_na(mfg_dict.get("value", "N/A") if isinstance(mfg_dict, dict) else mfg_dict)
+            
+            cat_dict = extracted_data.pop("Catalogue Group", {})
+            catalogue_text = clean_na(cat_dict.get("value", "N/A") if isinstance(cat_dict, dict) else cat_dict)
+            
+            comm_dict = extracted_data.pop("Commodity Group", {})
+            commodity_text = clean_na(comm_dict.get("value", "N/A") if isinstance(comm_dict, dict) else comm_dict)
+
+            # --- STANDARDIZE PACKAGE TYPE FORMATTING ---
+            if "Package Type" in extracted_data and isinstance(extracted_data["Package Type"], dict):
+                pkg_val = str(extracted_data["Package Type"].get("value", "")).strip()
+                if pkg_val and pkg_val != "N/A":
+                    clean_pkg = pkg_val.replace("EIA", "").replace("*", "").strip()
+                    std_pkg = f"EIA{clean_pkg}*"
+                    
+                    extracted_data["Package Type"]["value"] = std_pkg
+                    
+                    if "Package Type (EIA)" not in extracted_data or not isinstance(extracted_data["Package Type (EIA)"], dict):
+                        extracted_data["Package Type (EIA)"] = {"value": "N/A", "evidence": "N/A", "page": "N/A"}
+                    
+                    extracted_data["Package Type (EIA)"]["value"] = std_pkg
+                    extracted_data["Package Type (EIA)"]["evidence"] = extracted_data["Package Type"].get("evidence", "N/A")
+                    extracted_data["Package Type (EIA)"]["page"] = extracted_data["Package Type"].get("page", "N/A")
+
+            # --- PYTHON MATH OVERRIDE UNTUK PITCH ---
             if "Pitch (Footprint) (mm)" in extracted_data:
                 pitch_item = extracted_data["Pitch (Footprint) (mm)"]
                 if isinstance(pitch_item, dict):
                     calc_str = str(pitch_item.get("evidence", ""))
                     if "-" in calc_str:
                         try:
-                            # Bersihkan string jalan kerja
                             clean_str = calc_str.replace("Formula:", "").strip(" ()")
                             parts = clean_str.split("-")
                             if len(parts) == 2:
@@ -231,7 +259,6 @@ if uploaded_file is not None or spec_file is not None:
                         except Exception:
                             pass
             
-            # Buang kertas conteng AI dari paparan jadual UI
             extracted_data.pop("Pitch_Calculation_Logic", None)
 
             st.success("Extraction Complete!")
