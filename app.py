@@ -7,14 +7,34 @@ import random
 import csv 
 import io
 import os
+import subprocess # Tambah module ini
 from datetime import datetime
 
 # --- 1. SETTING TAJUK WEB ---
-st.set_page_config(page_title="C* Datasheet Analyzer)", page_icon="📄", layout="wide")
+st.set_page_config(page_title="C* Datasheet Analyzer", page_icon="📄", layout="wide")
 st.title("📄 C* Datasheet Analyzer")
 st.write("Upload a datasheet (PDF) and the AI will extract the key specifications.")
 
-last_update_date = "13/09/2026" # Manually update this whenever you push a new version
+# --- AUTO-UPDATE DATE LOGIC ---
+def get_last_update_date(file_path):
+    try:
+        # Check Git history for the last actual commit date of this file
+        result = subprocess.run(
+            ['git', 'log', '-1', '--format=%cd', '--date=format:%d/%m/%Y', file_path],
+            capture_output=True, text=True, check=True
+        )
+        git_date = result.stdout.strip()
+        if git_date:
+            return git_date
+    except Exception:
+        pass # Ignore errors if Git isn't initialized or fails
+        
+    # Fallback to OS file timestamp if Git is unavailable
+    modified_timestamp = os.path.getmtime(file_path)
+    return datetime.fromtimestamp(modified_timestamp).strftime("%d/%m/%Y")
+
+file_path = __file__
+last_update_date = get_last_update_date(file_path)
 st.write(f"Analyzer last update on: {last_update_date}.")
 
 # --- 2. INISIALISASI MEMORI (SESSION STATE) ---
