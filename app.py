@@ -416,7 +416,7 @@ if st.session_state.raw_extracted_data:
         writer.writerow(["Metadata", "Value", "", "", ""])
         writer.writerow(["Standardized Designation", designation_text, "", "", ""])
         writer.writerow(["Manufacturer", manufacturer_text, "", "", ""])
-        writer.writerow(["Commodity Group", selected_commodity, "", "", ""])
+        writer.writerow(["Commodity Group", selected_commodity_full, "", "", ""])
         writer.writerow(["Catalogue Group", catalogue_text, "", "", ""])
         writer.writerow([])
         writer.writerow(["Specification", "Extracted Value", "Unit", "Page", "Source Evidence"]) 
