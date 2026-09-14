@@ -133,15 +133,16 @@ if uploaded_file is not None or spec_file is not None:
             - FOR ALL KEYS: Return a nested JSON object with three fields: "value", "evidence", and "page".
             - CRITICAL: If any information is missing or not found in the datasheet, strictly return "N/A" for the "value", "evidence", and "page" fields. Do NOT return null, None, or "unknown".
 
-            [CAPACITOR SPECIFIC RULES]
+          [CAPACITOR SPECIFIC RULES]
             - FOR "Commodity Group": Select strictly ONE from this list: CC, CD, CE, CG, CH, CK, CL, CM, CN, CP, CS, CT, CV, CX, CB. 
               (Hint: CC = miniature ceramic, CE = electrolytic, CG = mica, CK = film, CL = ceramic power, CS = suppression). If not found, return "N/A".
             - FOR "Catalogue Group": Select strictly ONE: "Capacitors fixed", "Capacitor Electrolyt", "Capacitor mech. adjustable", or "Capacitor electr. adjustable". If not found, return "N/A".
             - FOR "Manufacturer": Select exactly from this list: binder mpe GmbH, Dalicap Technology Co., Ltd., ebm-papst (Mulfingen) GmbH & Co. KG, Electronicon Kiondensatoren GmbH, Exxelia Group, HIGH ENERGY Corp., Holy Stone Enterprise Co., Ltd., Richard Jahre GmbH, Johanson Precision Corporation, K+B elektromechanische, Knowles Electronics, LLC, Kyocera AVX Components Ltd., MACOM Technology Solutions Holdings, Murata Manufacturing Co., Ltd, Nichicon Corporation, NIPPON CHEMI-CON CORPORATION, OXLEY DEVELOPMENTS, Panasonic Corporation, Presidio Components Inc., PSA Passive System Alliance Group, Rubycon Corporation, Samsung Group, Schlund GmbH, Spectrum Control, Inc., Syfer Technology Ltd., Taiyo Yuden Co., Ltd., TDK Corporation, TE Connectivity Ltd., Tronser GmbH, CTS Corporation, Vishay Intertechnology, Inc., Voltronics Corp., WIMA Spezialvertrieb elektronische, Yageo Corporation. If not found, return "N/A".
             - FOR "Designation": Construct a string following EXACTLY this format: [Capacity] [Tolerance] [Voltage] [Description] [Package Type EIA]. 
-              * Example: "100NF 10% 250V X7T 1210". Format the capacity properly (e.g. 100NF, 10UF). Include the % for tolerance and V for voltage.
+              * Example: "100NF 10% 250V X7T 1210". Format the capacity properly (e.g. 100NF, 10UF). 
+              * CRITICAL FOR TOLERANCE: For [Tolerance] in the Designation string, you MUST use the numeric percentage (e.g., 5%, 10%) and NEVER the letter code (e.g., J, K, M). Remove any '±' symbol (e.g., strictly use "5%", do not use "±5%" or "J"). Include the % and V symbols.
             - FOR "Capacity [F]": Extract the nominal capacitance value with unit (e.g., 100nF, 10uF).
-            - FOR "Tolerance [%]": Extract the tolerance percentage or letter code.
+            - FOR "Tolerance [%]": Extract the numeric tolerance percentage. Remove the '±' symbol (e.g., output "5", not "±5" or "J").
             - FOR "Voltage [V]": Extract the rated voltage.
             
             [GENERAL RULES]
