@@ -140,7 +140,7 @@ if uploaded_file is not None or spec_file is not None:
 
             [CAPACITOR SPECIFIC RULES]
             - FOR "Commodity Group": Select strictly ONE 2-letter code from this list based on the capacitor type found: "CB" (capacitor - bypass or feed through), "CC" (capacitor - miniature ceramic), "CD" (capacitor - variable), "CE" (capacitor - electrolytic), "CG" (capacitor - mica), "CH" (capacitor - barrier layer), "CK" (capacitor - film), "CL" (capacitor - ceramic power), "CM" (capacitor - MP), "CN" (capacitor - networks), "CP" (capacitor - paper), "CS" (capacitor - suppression), "CT" (capacitor - trimmer), "CV" (capacitor - vacuum), "CX" (capacitor - uncapsulated chip). Return ONLY the 2-letter code (e.g., "CC").
-            - FOR "Catalogue Group": Select strictly ONE: "Capacitors fixed", "Capacitor Electrolyt", "Capacitor mech. adjustable", or "Capacitor electr. adjustable". If not found, return "N/A".
+            - FOR "Catalogue Group": Select strictly ONE from this list: "Capacitors fixed", "Capacitor Electrolyt", "Capacitor mech. adjustable", "Capacitor electr. adjustable", "EMI-Filter (Feedthrough-, Mains-)". If not found, return "N/A".
             - FOR "Manufacturer": Select exactly from this list: binder mpe GmbH, Dalicap Technology Co., Ltd., ebm-papst (Mulfingen) GmbH & Co. KG, Electronicon Kiondensatoren GmbH, Exxelia Group, HIGH ENERGY Corp., Holy Stone Enterprise Co., Ltd., Richard Jahre GmbH, Johanson Precision Corporation, K+B elektromechanische, Knowles Electronics, LLC, Kyocera AVX Components Ltd., MACOM Technology Solutions Holdings, Murata Manufacturing Co., Ltd, Nichicon Corporation, NIPPON CHEMI-CON CORPORATION, OXLEY DEVELOPMENTS, Panasonic Corporation, Presidio Components Inc., PSA Passive System Alliance Group, Rubycon Corporation, Samsung Group, Schlund GmbH, Spectrum Control, Inc., Syfer Technology Ltd., Taiyo Yuden Co., Ltd., TDK Corporation, TE Connectivity Ltd., Tronser GmbH, CTS Corporation, Vishay Intertechnology, Inc., Voltronics Corp., WIMA Spezialvertrieb elektronische, Yageo Corporation. (Hint: If the text mentions "Johanson", "JDI", or "Johanson Dielectrics", select "Johanson Precision Corporation"). If not found, return "N/A".
             - FOR "Designation": Construct a string following EXACTLY this format: [Capacity] [Tolerance] [Voltage] [Description] [Package Type EIA]. 
               * Example: "100NF 10% 250V X7T 1210". Format the capacity properly (e.g. 100NF, 10UF). 
@@ -308,7 +308,22 @@ if st.session_state.raw_extracted_data:
         # Ekstrak semula kod 2 huruf di depan (contoh: "CC") untuk logik jadual di bawah
         selected_commodity_code = selected_commodity_full.split(":")[0]
         
-        colC.caption(f"📖 **Catalogue Group:** {catalogue_text}")
+        # --- SELECTBOX UNTUK CATALOGUE GROUP ---
+        catalogue_list = [
+            "Capacitors fixed", 
+            "Capacitor Electrolyt", 
+            "Capacitor mech. adjustable", 
+            "Capacitor electr. adjustable", 
+            "EMI-Filter (Feedthrough-, Mains-)"
+        ]
+        
+        default_cat_idx = catalogue_list.index(catalogue_text) if catalogue_text in catalogue_list else 0
+        
+        selected_catalogue = colC.selectbox(
+            "📖 **Catalogue Group (Editable):**", 
+            options=catalogue_list, 
+            index=default_cat_idx
+        )
 
         # --- STANDARDIZE PACKAGE TYPE FORMATTING ---
         if "Package Type" in extracted_data and isinstance(extracted_data["Package Type"], dict):
@@ -417,7 +432,7 @@ if st.session_state.raw_extracted_data:
         writer.writerow(["Standardized Designation", designation_text, "", "", ""])
         writer.writerow(["Manufacturer", manufacturer_text, "", "", ""])
         writer.writerow(["Commodity Group", selected_commodity_full, "", "", ""])
-        writer.writerow(["Catalogue Group", catalogue_text, "", "", ""])
+        writer.writerow(["Catalogue Group", selected_catalogue, "", "", ""])
         writer.writerow([])
         writer.writerow(["Specification", "Extracted Value", "Unit", "Page", "Source Evidence"]) 
         
