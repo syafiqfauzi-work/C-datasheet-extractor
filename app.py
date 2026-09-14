@@ -223,25 +223,24 @@ if uploaded_file is not None or spec_file is not None:
                     st.error("⚠️ Sila masukkan GEMINI_API_KEY di dalam Streamlit Secrets.")
                     st.stop()
                     
-               except Exception as e:
-                        if "429" in str(e) or "Quota" in str(e):
-                            if attempt < max_retries - 1:
-                                progress_bar.progress(40, text=f"API limit reached. Auto-retrying in {retry_delay}s... (Trial {attempt+1}/{max_retries})")
-                                time.sleep(retry_delay)
-                            else:
-                                progress_bar.empty()
-                                st.error("Failed after 3 trials. Rilex & wait for a minute, then try again.")
-                                st.stop() 
+                except Exception as e:
+                    if "429" in str(e) or "Quota" in str(e):
+                        if attempt < max_retries - 1:
+                            progress_bar.progress(40, text=f"API limit reached. Auto-retrying in {retry_delay}s... (Trial {attempt+1}/{max_retries})")
+                            time.sleep(retry_delay)
                         else:
                             progress_bar.empty()
-                            st.error(f"API Error: {e}")
-                            st.stop()
-            
-            # --- TAMBAH BLOK INI UNTUK MENUTUP 'TRY' UTAMA ---
-            except Exception as e:
-                progress_bar.empty()
-                st.error(f"Error during extraction process: {e}")
-                st.stop()
+                            st.error("Failed after 3 trials. Rilex & wait for a minute, then try again.")
+                            st.stop() 
+                    else:
+                        progress_bar.empty()
+                        st.error(f"API Error: {e}")
+                        st.stop()
+                        
+        except Exception as e:
+            progress_bar.empty()
+            st.error(f"Error during extraction process: {e}")
+            st.stop()
 
 # =====================================================================
 # UI RENDERING - BERADA DI LUAR BUTANG SUPAYA INTERAKTIF (TIDAK HILANG)
