@@ -7,7 +7,8 @@ import random
 import csv 
 import io
 import os
-import subprocess # Tambah module ini
+import subprocess 
+import copy # Tambahan module untuk deepcopy
 from datetime import datetime
 
 # --- 1. SETTING TAJUK WEB ---
@@ -18,7 +19,6 @@ st.write("Upload a datasheet (PDF) and the AI will extract the key specification
 # --- AUTO-UPDATE DATE LOGIC ---
 def get_last_update_date(file_path):
     try:
-        # Check Git history for the last actual commit date of this file
         result = subprocess.run(
             ['git', 'log', '-1', '--format=%cd', '--date=format:%d/%m/%Y', file_path],
             capture_output=True, text=True, check=True
@@ -27,9 +27,8 @@ def get_last_update_date(file_path):
         if git_date:
             return git_date
     except Exception:
-        pass # Ignore errors if Git isn't initialized or fails
+        pass 
         
-    # Fallback to OS file timestamp if Git is unavailable
     modified_timestamp = os.path.getmtime(file_path)
     return datetime.fromtimestamp(modified_timestamp).strftime("%d/%m/%Y")
 
@@ -42,6 +41,10 @@ if "reset_key" not in st.session_state:
     st.session_state.reset_key = 0
 if "history" not in st.session_state:
     st.session_state.history = []
+if "raw_extracted_data" not in st.session_state:
+    st.session_state.raw_extracted_data = None
+if "rekod_mpn" not in st.session_state:
+    st.session_state.rekod_mpn = "General (No MPN)"
 
 # --- PAPARAN HISTORY DI SIDEBAR ---
 with st.sidebar:
@@ -59,6 +62,7 @@ with st.sidebar:
 # --- 3 & 4. BUTANG RESET, INPUT MPN & UPLOAD ---
 if st.button("🔄 Reset"):
     st.session_state.reset_key += 1
+    st.session_state.raw_extracted_data = None # Clear data on reset
     st.rerun() 
 
 target_mpn = st.text_input("Enter specific MPN (Optional but recommended for catalogs):", key=f"mpn_{st.session_state.reset_key}")
@@ -148,17 +152,17 @@ if uploaded_file is not None or spec_file is not None:
             - FOR "Tolerance [%]": Extract the numeric tolerance percentage. Remove the '±' symbol (e.g., output "5", not "±5" or "J").
             - FOR "Voltage [V]": Extract the rated voltage.
             - FOR "Package Type" and "Package Type (EIA)": Return the value EXACTLY in this format: EIA[Package EIA Size]*. For example, if the size is 0603, return "EIA0603*". Ensure both keys return this exact same formatted string.
-            - FOR "Pitch_Calculation_Logic": 1) Identify the nominal Length (L) in mm. 2) Identify the nominal terminal size / termination band (T) in mm. 3) Output exactly in this format: "Formula: L - T" (e.g., "Formula: 1.60 - 0.35").
-            - FOR "Pitch (Footprint) (mm)": Output "N/A" for the "value" field. For the "evidence" field, extract ONLY the exact formula string generated in "Pitch_Calculation_Logic" (e.g., "1.60 - 0.35").
             - FOR "Height [mm]": Extract ONLY the NOMINAL thickness/height (T) dimension. Do NOT extract the MAX value here. For example, if Dimension T is "2.5 ± 0.30 mm", extract exactly "2.5".
             - FOR "Height (Max)": Extract the MAXIMUM thickness/height value. For example, if it states "2.8mm MAX", extract "2.8". If it states "2.5 ± 0.30 mm", extract "2.8". For catalogs using thickness letters (e.g., size 0603 letter 'A'), use the corresponding max thickness from the table (e.g., 0.90).
+            - FOR "Pitch_Calculation_Logic": 1) Identify the nominal Length (L) in mm. 2) Identify the nominal terminal size / termination band (T) in mm. 3) Output exactly in this format: "Formula: L - T" (e.g., "Formula: 1.60 - 0.35").
+            - FOR "Pitch (Footprint) (mm)": Output "N/A" for the "value" field. For the "evidence" field, extract ONLY the exact formula string generated in "Pitch_Calculation_Logic" (e.g., "1.60 - 0.35").
             - FOR "Description": Select STRICTLY ONE option from this valid list for the "value" field based on the dielectric/material found: ["KERAMIK-P90", "KERAMIK-P100", "KERAMIK-C0G", "KERAMIK-U2J", "KERAMIK-SL", "KERAMIK-X7R", "KERAMIK-X7S", "KERAMIK-X7T", "KERAMIK-X6S", "KERAMIK-X5S", "KERAMIK-X5R", "KERAMIK-Y5V", "KERAMIK-Y5U", "KERAMIK-Z5U", "KERAMIK-Y5S", "SILICON-C0G", "SILICON-C0H", "FOLIE*", "SILICON CAPACITOR", "FOLIE-PPS", "FOLIE-PEN", "FOLIE-PET", "FOLIE-PP", "FOLIE-PML", "GLIMMER", "METALLPAPIER"]. For the "evidence" field, keep the raw text extracted directly from the datasheet.
             
             [GENERAL RULES]
             - FOR "Kind of Mounting": Select ONE: "SMT (surface-mounting technology)", "THR, PiP (through-hole technology)", "press-fit", "THW (through-hole technology)", "none".
-            - FOR "St. Solder (Standard Solder)": Select STRICTLY ONE option from this list: ["R: reflow soldering top / bottom", "B: reflow soldering top - only", "W: wave soldering bottom", "H: manually soldering / bonding", "N: no soldering"].
-            - FOR "Alt. Solder (Alternate Solder)": Select STRICTLY ONE option from this list: ["L: selective hot air soldering", "W: wave soldering bottom", "T: selective wave soldering", "H: manually soldering", "N: no soldering"].
-            - FOR "Rep. Solder (Repair Solder)": Select STRICTLY ONE option from this list: ["L: selective hot air soldering", "H: manually soldering", "N: no soldering"].
+            - FOR "St. Solder (Standard Solder)": Select STRICTLY ONE option from this list: ["reflow soldering top / bottom", "reflow soldering top - only", "wave soldering bottom", "manually soldering / bonding", "no soldering"].
+            - FOR "Alt. Solder (Alternate Solder)": Select STRICTLY ONE option from this list: ["selective hot air soldering", "wave soldering bottom", "selective wave soldering", "manually soldering", "no soldering"].
+            - FOR "Rep. Solder (Repair Solder)": Select STRICTLY ONE option from this list: ["selective hot air soldering", "manually soldering", "no soldering"].
             - FOR REFLOW: Extract ONLY the raw nominal numerical value. Discard text/units.
             - FOR "Washability" and "Varnishability": Determine the single letter code based on the Commodity Group and the following criteria. Return ONLY the letter in the "value" field:
               * CB (Feedthrough), CH (Barrier-layer), CM (MP), CN (Networks), CP (Paper), CS (Suppression), CV (Vacuum): Washability="K", Varnishability="K".
@@ -185,7 +189,6 @@ if uploaded_file is not None or spec_file is not None:
             
             max_retries = 3
             retry_delay = 15 
-            extracted_data = None
             
             for attempt in range(max_retries):
                 try:
@@ -201,8 +204,18 @@ if uploaded_file is not None or spec_file is not None:
                             "response_mime_type": "application/json"
                         }
                     )
-                    extracted_data = json.loads(response.text, strict=False)
-                    progress_bar.progress(80, text="AI extraction complete. Parsing data...")
+                    
+                    # SIMPAN DATA KE DALAM SESSION STATE (Memori)
+                    st.session_state.raw_extracted_data = json.loads(response.text, strict=False)
+                    st.session_state.rekod_mpn = target_mpn.upper() if target_mpn else "General (No MPN)"
+                    
+                    if st.session_state.rekod_mpn not in st.session_state.history:
+                        st.session_state.history.append(st.session_state.rekod_mpn)
+                        
+                    progress_bar.progress(100, text="AI extraction complete!")
+                    time.sleep(0.5)
+                    progress_bar.empty()
+                    st.rerun() # Refresh untuk render UI di bawah
                     break 
                     
                 except KeyError:
@@ -223,174 +236,173 @@ if uploaded_file is not None or spec_file is not None:
                         progress_bar.empty()
                         st.error(f"API Error: {e}")
                         st.stop()
-            
-            if not extracted_data:
-                st.stop()
-            
-            progress_bar.progress(90, text="Building UI tables and CSV report...")
-            
-           # --- HELPER UNTUK BERSIHKAN NULL/UNKNOWN KEPADA N/A ---
-            def clean_na(val):
-                if val is None or str(val).strip().lower() in ["null", "none", "unknown", ""]:
-                    return "N/A"
-                return str(val)
 
-            # --- ASINGKAN HEADER INFO ---
-            designation_dict = extracted_data.pop("Designation", {})
-            designation_text = clean_na(designation_dict.get("value", "N/A") if isinstance(designation_dict, dict) else designation_dict).upper()
-            
-            mfg_dict = extracted_data.pop("Manufacturer", {})
-            manufacturer_text = clean_na(mfg_dict.get("value", "N/A") if isinstance(mfg_dict, dict) else mfg_dict)
-            
-            cat_dict = extracted_data.pop("Catalogue Group", {})
-            catalogue_text = clean_na(cat_dict.get("value", "N/A") if isinstance(cat_dict, dict) else cat_dict)
-            
-            comm_dict = extracted_data.pop("Commodity Group", {})
-            commodity_text = clean_na(comm_dict.get("value", "N/A") if isinstance(comm_dict, dict) else comm_dict)
+# =====================================================================
+# UI RENDERING - BERADA DI LUAR BUTANG SUPAYA INTERAKTIF (TIDAK HILANG)
+# =====================================================================
+if st.session_state.raw_extracted_data:
+    try:
+        # Gunakan deepcopy supaya data asal dalam memori tak diganggu bila kita .pop()
+        extracted_data = copy.deepcopy(st.session_state.raw_extracted_data)
+        
+        def clean_na(val):
+            if val is None or str(val).strip().lower() in ["null", "none", "unknown", ""]:
+                return "N/A"
+            return str(val)
 
-            # --- STANDARDIZE PACKAGE TYPE FORMATTING ---
-            if "Package Type" in extracted_data and isinstance(extracted_data["Package Type"], dict):
-                pkg_val = str(extracted_data["Package Type"].get("value", "")).strip()
-                if pkg_val and pkg_val != "N/A":
-                    # Bersihkan perkataan EIA dan tanda * jika ada (untuk elak duplicate)
-                    clean_pkg = pkg_val.replace("EIA", "").replace("*", "").strip()
-                    std_pkg = f"EIA{clean_pkg}*"
-                    
-                    extracted_data["Package Type"]["value"] = std_pkg
-                    
-                    # Salin terus ke Package Type (EIA)
-                    if "Package Type (EIA)" not in extracted_data or not isinstance(extracted_data["Package Type (EIA)"], dict):
-                        extracted_data["Package Type (EIA)"] = {"value": "N/A", "evidence": "N/A", "page": "N/A"}
-                    
-                    extracted_data["Package Type (EIA)"]["value"] = std_pkg
-                    extracted_data["Package Type (EIA)"]["evidence"] = extracted_data["Package Type"].get("evidence", "N/A")
-                    extracted_data["Package Type (EIA)"]["page"] = extracted_data["Package Type"].get("page", "N/A")
+        # --- ASINGKAN HEADER INFO ---
+        designation_dict = extracted_data.pop("Designation", {})
+        designation_text = clean_na(designation_dict.get("value", "N/A") if isinstance(designation_dict, dict) else designation_dict).upper()
+        
+        mfg_dict = extracted_data.pop("Manufacturer", {})
+        manufacturer_text = clean_na(mfg_dict.get("value", "N/A") if isinstance(mfg_dict, dict) else mfg_dict)
+        
+        cat_dict = extracted_data.pop("Catalogue Group", {})
+        catalogue_text = clean_na(cat_dict.get("value", "N/A") if isinstance(cat_dict, dict) else cat_dict)
+        
+        # Ekstrak Commodity Group asal dari AI
+        comm_dict = extracted_data.pop("Commodity Group", {})
+        ai_commodity = clean_na(comm_dict.get("value", "N/A") if isinstance(comm_dict, dict) else comm_dict).upper()
 
-            # --- PYTHON MATH OVERRIDE UNTUK PITCH ---
-            if "Pitch (Footprint) (mm)" in extracted_data:
-                pitch_item = extracted_data["Pitch (Footprint) (mm)"]
-                if isinstance(pitch_item, dict):
-                    calc_str = str(pitch_item.get("evidence", ""))
-                    if "-" in calc_str:
-                        try:
-                            clean_str = calc_str.replace("Formula:", "").strip(" ()")
-                            parts = clean_str.split("-")
-                            if len(parts) == 2:
-                                pitch_val = float(parts[0].strip()) - float(parts[1].strip())
-                                extracted_data["Pitch (Footprint) (mm)"]["value"] = str(round(pitch_val, 4))
-                                extracted_data["Pitch (Footprint) (mm)"]["evidence"] = f"{parts[0].strip()} - {parts[1].strip()}"
-                        except Exception:
-                            pass
-            
-            extracted_data.pop("Pitch_Calculation_Logic", None)
+        st.success("Extraction Complete!")
+        st.info(f"**Standardized Designation:** {designation_text}")
+        
+        colA, colB, colC = st.columns(3)
+        colA.caption(f"🏢 **Manufacturer:** {manufacturer_text}")
+        
+        # --- SELECTBOX UNTUK COMMODITY GROUP ---
+        commodity_list = ["CC", "CB", "CE", "CD", "CG", "CH", "CK", "CL", "CM", "CN", "CP", "CS", "CT", "CV", "CX"]
+        default_idx = commodity_list.index(ai_commodity) if ai_commodity in commodity_list else 0
+        
+        selected_commodity = colB.selectbox(
+            "📦 **Commodity Group (Editable):**", 
+            options=commodity_list, 
+            index=default_idx
+        )
+        
+        colC.caption(f"📖 **Catalogue Group:** {catalogue_text}")
 
-            st.success("Extraction Complete!")
-            progress_bar.progress(100, text="Done!")
-            time.sleep(0.5)
-            progress_bar.empty()
-            
-            rekod_mpn = target_mpn.upper() if target_mpn else "General (No MPN)"
-            if rekod_mpn not in st.session_state.history:
-                st.session_state.history.append(rekod_mpn)
-            
-            st.info(f"**Standardized Designation:** {designation_text}")
-            colA, colB, colC = st.columns(3)
-            colA.caption(f"🏢 **Manufacturer:** {manufacturer_text}")
-            colB.caption(f"📦 **Commodity Group:** {commodity_text}")
-            colC.caption(f"📖 **Catalogue Group:** {catalogue_text}")
-            
-            # --- DEFINISI KATEGORI ---
-            keys_top = ["Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)"]
-            keys_library = ["Length [mm]", "Width [mm]", "Height (Max)", "Package Type (EIA)", "Pitch (Footprint) (mm)", "Number of Pins"]
-            keys_processability = ["Kind of Mounting", "Washability", "Varnishability", "St. Solder (Standard Solder)", "Alt. Solder (Alternate Solder)", "Rep. Solder (Repair Solder)", "ESS Suitable", "Max Reflow Cycle (cycles)", "Max Reflow Time (s)", "Max Reflow Temp (°C)"]
-            
-            # --- DYNAMIC TECH PARAMETER BASED ON COMMODITY ---
-            if commodity_text == "CB":
-                keys_techn = ["Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Voltage [V]", "Current [A]", "Inductance [H]", "Tolerance [%]", "Additional Information", "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Package Type", "Length [mm]", "Width [mm]", "Height [mm]", "Capacity [F]", "Resistance [Ohm]", "Impedance@MHz", "ImpMax@MHz [Hz]"]
-            elif commodity_text == "CE":
-                keys_techn = ["Capacity [F]", "Tolerance [%]", "Ripple Current", "Package Type", "Processing Technology", "Description", "Voltage [V]", "ESR [Ohm]", "Endurance [h/°C]", "Height [mm]"]
-            else:
-                # Default for CC, CG, CK, CS, CL and others
-                keys_techn = ["Capacity [F]", "Tolerance [%]", "Package Type", "Height [mm]", "Voltage [V]", "Description", "Surface", "Additional Information"]
+        # --- STANDARDIZE PACKAGE TYPE FORMATTING ---
+        if "Package Type" in extracted_data and isinstance(extracted_data["Package Type"], dict):
+            pkg_val = str(extracted_data["Package Type"].get("value", "")).strip()
+            if pkg_val and pkg_val != "N/A":
+                clean_pkg = pkg_val.replace("EIA", "").replace("*", "").strip()
+                std_pkg = f"EIA{clean_pkg}*"
+                
+                extracted_data["Package Type"]["value"] = std_pkg
+                
+                if "Package Type (EIA)" not in extracted_data or not isinstance(extracted_data["Package Type (EIA)"], dict):
+                    extracted_data["Package Type (EIA)"] = {"value": "N/A", "evidence": "N/A", "page": "N/A"}
+                
+                extracted_data["Package Type (EIA)"]["value"] = std_pkg
+                extracted_data["Package Type (EIA)"]["evidence"] = extracted_data["Package Type"].get("evidence", "N/A")
+                extracted_data["Package Type (EIA)"]["page"] = extracted_data["Package Type"].get("page", "N/A")
 
-            def build_table(keys_list, data_dict):
-                specs, values, units, evidences, pages = [], [], [], [], []
-                for key in keys_list:
-                    item = data_dict.get(key, {"value": "N/A", "evidence": "N/A", "page": "N/A"})
-                    
-                    if item is None:
-                        val, ev, pg = "N/A", "N/A", "N/A"
-                    elif isinstance(item, str):
-                        val, ev, pg = item, "N/A", "N/A"
-                    else:
-                        val = str(item.get("value", "N/A")) if item.get("value") is not None else "N/A"
-                        ev = str(item.get("evidence", "N/A")) if item.get("evidence") is not None else "N/A"
-                        pg = str(item.get("page", "N/A")) if item.get("page") is not None else "N/A"
-                        
-                    # Filter output akhir
-                    val = clean_na(val)
-                    ev = clean_na(ev)
-                    pg = clean_na(pg)
-                        
-                    # Extract Units from Brackets e.g., "Capacity [F]" -> Key: "Capacity", Unit: "F"
-                    unit_str = "-"
-                    clean_key = key
-                    
-                    if "[" in key and "]" in key:
-                        start_idx = key.find("[")
-                        end_idx = key.find("]")
-                        unit_str = key[start_idx+1:end_idx]
-                        clean_key = key[:start_idx].strip()
-                    elif "(°C)" in key: clean_key, unit_str = key.replace(" (°C)", ""), "°C"
-                    elif "(mm)" in key: clean_key, unit_str = key.replace(" (mm)", ""), "mm"
-                    elif "(%)" in key: clean_key, unit_str = key.replace(" (%)", ""), "%"
-                    elif "(s)" in key: clean_key, unit_str = key.replace(" (s)", ""), "s"
-                    elif "(cycles)" in key: clean_key, unit_str = key.replace(" (cycles)", ""), "cycles"
-                    elif "(Footprint)" in key: clean_key, unit_str = key.replace(" (Footprint)", ""), "mm" # Khas untuk Pitch
-                    
-                    specs.append(clean_key)
-                    values.append(val)
-                    units.append(unit_str)
-                    evidences.append(ev)
-                    pages.append(pg)
-                    
-                return {"Specification": specs, "Extracted Value": values, "Unit": units, "Page": pages, "Source Evidence": evidences}
+        # --- PYTHON MATH OVERRIDE UNTUK PITCH ---
+        if "Pitch (Footprint) (mm)" in extracted_data:
+            pitch_item = extracted_data["Pitch (Footprint) (mm)"]
+            if isinstance(pitch_item, dict):
+                calc_str = str(pitch_item.get("evidence", ""))
+                if "-" in calc_str:
+                    try:
+                        clean_str = calc_str.replace("Formula:", "").strip(" ()")
+                        parts = clean_str.split("-")
+                        if len(parts) == 2:
+                            pitch_val = float(parts[0].strip()) - float(parts[1].strip())
+                            extracted_data["Pitch (Footprint) (mm)"]["value"] = str(round(pitch_val, 4))
+                            extracted_data["Pitch (Footprint) (mm)"]["evidence"] = f"{parts[0].strip()} - {parts[1].strip()}"
+                    except Exception:
+                        pass
+        
+        extracted_data.pop("Pitch_Calculation_Logic", None)
+        
+        # --- DEFINISI KATEGORI ---
+        keys_top = ["Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)"]
+        keys_library = ["Length [mm]", "Width [mm]", "Height (Max)", "Package Type (EIA)", "Pitch (Footprint) (mm)", "Number of Pins"]
+        keys_processability = ["Kind of Mounting", "Washability", "Varnishability", "St. Solder (Standard Solder)", "Alt. Solder (Alternate Solder)", "Rep. Solder (Repair Solder)", "ESS Suitable", "Max Reflow Cycle (cycles)", "Max Reflow Time (s)", "Max Reflow Temp (°C)"]
+        
+        # --- DYNAMIC TECH PARAMETER BASED ON SELECTED COMMODITY ---
+        if selected_commodity == "CB":
+            keys_techn = ["Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Voltage [V]", "Current [A]", "Inductance [H]", "Tolerance [%]", "Additional Information", "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Package Type", "Length [mm]", "Width [mm]", "Height [mm]", "Capacity [F]", "Resistance [Ohm]", "Impedance@MHz", "ImpMax@MHz [Hz]"]
+        elif selected_commodity == "CE":
+            keys_techn = ["Capacity [F]", "Tolerance [%]", "Ripple Current", "Package Type", "Processing Technology", "Description", "Voltage [V]", "ESR [Ohm]", "Endurance [h/°C]", "Height [mm]"]
+        else:
+            keys_techn = ["Capacity [F]", "Tolerance [%]", "Package Type", "Height [mm]", "Voltage [V]", "Description", "Surface", "Additional Information"]
 
-            # --- 4 TABS UI ---
-            tab1, tab2, tab3, tab4 = st.tabs(["Top", "Library", "Processability", "Techn.Parameter"])
-            with tab1: st.table(build_table(keys_top, extracted_data))
-            with tab2: st.table(build_table(keys_library, extracted_data))
-            with tab3: st.table(build_table(keys_processability, extracted_data))
-            with tab4: st.table(build_table(keys_techn, extracted_data))
-            
-            # --- JANA FAIL EXCEL (CSV) ---
-            all_keys = keys_top + keys_library + keys_processability + keys_techn
-            all_data = build_table(all_keys, extracted_data)
-            
-            csv_buffer = io.StringIO()
-            csv_buffer.write('\ufeff') 
-            
-            writer = csv.writer(csv_buffer)
-            # Inject Metadata header
-            writer.writerow(["Metadata", "Value", "", "", ""])
-            writer.writerow(["Standardized Designation", designation_text, "", "", ""])
-            writer.writerow(["Manufacturer", manufacturer_text, "", "", ""])
-            writer.writerow(["Commodity Group", commodity_text, "", "", ""])
-            writer.writerow(["Catalogue Group", catalogue_text, "", "", ""])
-            writer.writerow([])
-            # Data table header
-            writer.writerow(["Specification", "Extracted Value", "Unit", "Page", "Source Evidence"]) 
-            
-            for i in range(len(all_data["Specification"])):
-                writer.writerow([all_data["Specification"][i], all_data["Extracted Value"][i], all_data["Unit"][i], all_data["Page"][i], all_data["Source Evidence"][i]])
-            
-            st.divider()
-            st.download_button(
-                label="📥 Download Report (CSV)",
-                data=csv_buffer.getvalue(),
-                file_name=f"{rekod_mpn}_Capacitor_Report.csv",
-                mime="text/csv"
-            )
-            
-        except Exception as e:
-            st.error(f"Error Happened!: {e}")
+        def build_table(keys_list, data_dict):
+            specs, values, units, evidences, pages = [], [], [], [], []
+            for key in keys_list:
+                item = data_dict.get(key, {"value": "N/A", "evidence": "N/A", "page": "N/A"})
+                
+                if item is None:
+                    val, ev, pg = "N/A", "N/A", "N/A"
+                elif isinstance(item, str):
+                    val, ev, pg = item, "N/A", "N/A"
+                else:
+                    val = str(item.get("value", "N/A")) if item.get("value") is not None else "N/A"
+                    ev = str(item.get("evidence", "N/A")) if item.get("evidence") is not None else "N/A"
+                    pg = str(item.get("page", "N/A")) if item.get("page") is not None else "N/A"
+                    
+                val = clean_na(val)
+                ev = clean_na(ev)
+                pg = clean_na(pg)
+                    
+                unit_str = "-"
+                clean_key = key
+                
+                if "[" in key and "]" in key:
+                    start_idx = key.find("[")
+                    end_idx = key.find("]")
+                    unit_str = key[start_idx+1:end_idx]
+                    clean_key = key[:start_idx].strip()
+                elif "(°C)" in key: clean_key, unit_str = key.replace(" (°C)", ""), "°C"
+                elif "(mm)" in key: clean_key, unit_str = key.replace(" (mm)", ""), "mm"
+                elif "(%)" in key: clean_key, unit_str = key.replace(" (%)", ""), "%"
+                elif "(s)" in key: clean_key, unit_str = key.replace(" (s)", ""), "s"
+                elif "(cycles)" in key: clean_key, unit_str = key.replace(" (cycles)", ""), "cycles"
+                elif "(Footprint)" in key: clean_key, unit_str = key.replace(" (Footprint)", ""), "mm"
+                
+                specs.append(clean_key)
+                values.append(val)
+                units.append(unit_str)
+                evidences.append(ev)
+                pages.append(pg)
+                
+            return {"Specification": specs, "Extracted Value": values, "Unit": units, "Page": pages, "Source Evidence": evidences}
+
+        # --- 4 TABS UI ---
+        tab1, tab2, tab3, tab4 = st.tabs(["Top", "Library", "Processability", "Techn.Parameter"])
+        with tab1: st.table(build_table(keys_top, extracted_data))
+        with tab2: st.table(build_table(keys_library, extracted_data))
+        with tab3: st.table(build_table(keys_processability, extracted_data))
+        with tab4: st.table(build_table(keys_techn, extracted_data))
+        
+        # --- JANA FAIL EXCEL (CSV) ---
+        all_keys = keys_top + keys_library + keys_processability + keys_techn
+        all_data = build_table(all_keys, extracted_data)
+        
+        csv_buffer = io.StringIO()
+        csv_buffer.write('\ufeff') 
+        
+        writer = csv.writer(csv_buffer)
+        writer.writerow(["Metadata", "Value", "", "", ""])
+        writer.writerow(["Standardized Designation", designation_text, "", "", ""])
+        writer.writerow(["Manufacturer", manufacturer_text, "", "", ""])
+        writer.writerow(["Commodity Group", selected_commodity, "", "", ""])
+        writer.writerow(["Catalogue Group", catalogue_text, "", "", ""])
+        writer.writerow([])
+        writer.writerow(["Specification", "Extracted Value", "Unit", "Page", "Source Evidence"]) 
+        
+        for i in range(len(all_data["Specification"])):
+            writer.writerow([all_data["Specification"][i], all_data["Extracted Value"][i], all_data["Unit"][i], all_data["Page"][i], all_data["Source Evidence"][i]])
+        
+        st.divider()
+        st.download_button(
+            label="📥 Download Report (CSV)",
+            data=csv_buffer.getvalue(),
+            file_name=f"{st.session_state.rekod_mpn}_Capacitor_Report.csv",
+            mime="text/csv"
+        )
+        
+    except Exception as e:
+        st.error(f"Error Happened during UI build!: {e}")
