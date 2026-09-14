@@ -139,8 +139,7 @@ if uploaded_file is not None or spec_file is not None:
             - CRITICAL: If any information is missing or not found in the datasheet, strictly return "N/A" for the "value", "evidence", and "page" fields. Do NOT return null, None, or "unknown".
 
             [CAPACITOR SPECIFIC RULES]
-            - FOR "Commodity Group": Select strictly ONE from this list: CC, CD, CE, CG, CH, CK, CL, CM, CN, CP, CS, CT, CV, CX, CB. 
-              (Hint: CC = miniature ceramic, CE = electrolytic, CG = mica, CK = film, CL = ceramic power, CS = suppression). If not found, return "N/A".
+            - FOR "Commodity Group": Select strictly ONE 2-letter code from this list based on the capacitor type found: "CB" (capacitor - bypass or feed through), "CC" (capacitor - miniature ceramic), "CD" (capacitor - variable), "CE" (capacitor - electrolytic), "CG" (capacitor - mica), "CH" (capacitor - barrier layer), "CK" (capacitor - film), "CL" (capacitor - ceramic power), "CM" (capacitor - MP), "CN" (capacitor - networks), "CP" (capacitor - paper), "CS" (capacitor - suppression), "CT" (capacitor - trimmer), "CV" (capacitor - vacuum), "CX" (capacitor - uncapsulated chip). Return ONLY the 2-letter code (e.g., "CC").
             - FOR "Catalogue Group": Select strictly ONE: "Capacitors fixed", "Capacitor Electrolyt", "Capacitor mech. adjustable", or "Capacitor electr. adjustable". If not found, return "N/A".
             - FOR "Manufacturer": Select exactly from this list: binder mpe GmbH, Dalicap Technology Co., Ltd., ebm-papst (Mulfingen) GmbH & Co. KG, Electronicon Kiondensatoren GmbH, Exxelia Group, HIGH ENERGY Corp., Holy Stone Enterprise Co., Ltd., Richard Jahre GmbH, Johanson Precision Corporation, K+B elektromechanische, Knowles Electronics, LLC, Kyocera AVX Components Ltd., MACOM Technology Solutions Holdings, Murata Manufacturing Co., Ltd, Nichicon Corporation, NIPPON CHEMI-CON CORPORATION, OXLEY DEVELOPMENTS, Panasonic Corporation, Presidio Components Inc., PSA Passive System Alliance Group, Rubycon Corporation, Samsung Group, Schlund GmbH, Spectrum Control, Inc., Syfer Technology Ltd., Taiyo Yuden Co., Ltd., TDK Corporation, TE Connectivity Ltd., Tronser GmbH, CTS Corporation, Vishay Intertechnology, Inc., Voltronics Corp., WIMA Spezialvertrieb elektronische, Yageo Corporation. (Hint: If the text mentions "Johanson", "JDI", or "Johanson Dielectrics", select "Johanson Precision Corporation"). If not found, return "N/A".
             - FOR "Designation": Construct a string following EXACTLY this format: [Capacity] [Tolerance] [Voltage] [Description] [Package Type EIA]. 
@@ -275,15 +274,39 @@ if st.session_state.raw_extracted_data:
         colA, colB, colC = st.columns(3)
         colA.caption(f"🏢 **Manufacturer:** {manufacturer_text}")
         
-        # --- SELECTBOX UNTUK COMMODITY GROUP ---
-        commodity_list = ["CC", "CB", "CE", "CD", "CG", "CH", "CK", "CL", "CM", "CN", "CP", "CS", "CT", "CV", "CX"]
-        default_idx = commodity_list.index(ai_commodity) if ai_commodity in commodity_list else 0
+        # --- KETETAPAN MAP COMMODITY GROUP ---
+        commodity_map = {
+            "CB": "CB: capacitor - bypass or feed through",
+            "CC": "CC: capacitor - miniature ceramic",
+            "CD": "CD: capacitor - variable",
+            "CE": "CE: capacitor - electrolytic",
+            "CG": "CG: capacitor - mica",
+            "CH": "CH: capacitor - barrier layer",
+            "CK": "CK: capacitor - film",
+            "CL": "CL: capacitor - ceramic power",
+            "CM": "CM: capacitor - MP",
+            "CN": "CN: capacitor - networks",
+            "CP": "CP: capacitor - paper",
+            "CS": "CS: capacitor - suppression",
+            "CT": "CT: capacitor - trimmer",
+            "CV": "CV: capacitor - vacuum",
+            "CX": "CX: capacitor - uncapsulated chip"
+        }
         
-        selected_commodity = colB.selectbox(
+        commodity_list = list(commodity_map.values())
+        
+        # Jika AI gagal cari atau teka salah, kita default kepada CC
+        default_val = commodity_map.get(ai_commodity, commodity_map["CC"])
+        default_idx = commodity_list.index(default_val)
+        
+        selected_commodity_full = colB.selectbox(
             "📦 **Commodity Group (Editable):**", 
             options=commodity_list, 
             index=default_idx
         )
+        
+        # Ekstrak semula kod 2 huruf di depan (contoh: "CC") untuk logik jadual di bawah
+        selected_commodity_code = selected_commodity_full.split(":")[0]
         
         colC.caption(f"📖 **Catalogue Group:** {catalogue_text}")
 
@@ -327,9 +350,9 @@ if st.session_state.raw_extracted_data:
         keys_processability = ["Kind of Mounting", "Washability", "Varnishability", "St. Solder (Standard Solder)", "Alt. Solder (Alternate Solder)", "Rep. Solder (Repair Solder)", "ESS Suitable", "Max Reflow Cycle (cycles)", "Max Reflow Time (s)", "Max Reflow Temp (°C)"]
         
         # --- DYNAMIC TECH PARAMETER BASED ON SELECTED COMMODITY ---
-        if selected_commodity == "CB":
+        if selected_commodity_code == "CB":
             keys_techn = ["Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Voltage [V]", "Current [A]", "Inductance [H]", "Tolerance [%]", "Additional Information", "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Package Type", "Length [mm]", "Width [mm]", "Height [mm]", "Capacity [F]", "Resistance [Ohm]", "Impedance@MHz", "ImpMax@MHz [Hz]"]
-        elif selected_commodity == "CE":
+        elif selected_commodity_code == "CE":
             keys_techn = ["Capacity [F]", "Tolerance [%]", "Ripple Current", "Package Type", "Processing Technology", "Description", "Voltage [V]", "ESR [Ohm]", "Endurance [h/°C]", "Height [mm]"]
         else:
             keys_techn = ["Capacity [F]", "Tolerance [%]", "Package Type", "Height [mm]", "Voltage [V]", "Description", "Surface", "Additional Information"]
