@@ -8,7 +8,7 @@ import csv
 import io
 import os
 import subprocess 
-import copy # Tambahan module untuk deepcopy
+import copy
 from datetime import datetime
 
 # --- 1. SETTING TAJUK WEB ---
@@ -62,7 +62,7 @@ with st.sidebar:
 # --- 3 & 4. BUTANG RESET, INPUT MPN & UPLOAD ---
 if st.button("🔄 Reset"):
     st.session_state.reset_key += 1
-    st.session_state.raw_extracted_data = None # Clear data on reset
+    st.session_state.raw_extracted_data = None 
     st.rerun() 
 
 target_mpn = st.text_input("Enter specific MPN (Optional but recommended for catalogs):", key=f"mpn_{st.session_state.reset_key}")
@@ -126,7 +126,7 @@ if uploaded_file is not None or spec_file is not None:
             "Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Current [A]", "Inductance [H]",
             "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Resistance [Ohm]",
             "Impedance@MHz", "ImpMax@MHz [Hz]", "Ripple Current", "Processing Technology", 
-            "ESR [Ohm]", "Endurance [h/°C]",
+            "ESR [Ohm]", "Endurance [h/°C]", "C-Start [F]", "C-End [F]", "Adjust from", "Step size [F]",
             "Kind of Mounting", "Washability", "Varnishability", "St. Solder (Standard Solder)", 
             "Alt. Solder (Alternate Solder)", "Rep. Solder (Repair Solder)", "ESS Suitable", 
             "Max Reflow Cycle (cycles)", "Max Reflow Time (s)", "Max Reflow Temp (°C)", "Number of Pins"
@@ -157,8 +157,8 @@ if uploaded_file is not None or spec_file is not None:
             - FOR "Pitch_Calculation_Logic": 1) Identify the nominal Length (L) in mm. 2) Identify the nominal terminal size / termination band (T) in mm. 3) Output exactly in this format: "Formula: L - T" (e.g., "Formula: 1.60 - 0.35").
             - FOR "Pitch (Footprint) (mm)": Output "N/A" for the "value" field. For the "evidence" field, extract ONLY the exact formula string generated in "Pitch_Calculation_Logic" (e.g., "1.60 - 0.35").
             - FOR "Description": Select STRICTLY ONE option from this valid list for the "value" field based on the dielectric/material found: ["KERAMIK-P90", "KERAMIK-P100", "KERAMIK-C0G", "KERAMIK-U2J", "KERAMIK-SL", "KERAMIK-X7R", "KERAMIK-X7S", "KERAMIK-X7T", "KERAMIK-X6S", "KERAMIK-X5S", "KERAMIK-X5R", "KERAMIK-Y5V", "KERAMIK-Y5U", "KERAMIK-Z5U", "KERAMIK-Y5S", "SILICON-C0G", "SILICON-C0H", "FOLIE*", "SILICON CAPACITOR", "FOLIE-PPS", "FOLIE-PEN", "FOLIE-PET", "FOLIE-PP", "FOLIE-PML", "GLIMMER", "METALLPAPIER"]. For the "evidence" field, keep the raw text extracted directly from the datasheet.
-            - FOR "Function": When Commodity Group is "CB", select STRICTLY ONE option from this list for the "value" field based on the application text in the datasheet: ["Feed Through Filter", "Mains/Line/Power Filter", "Data Line Filter"]. If not applicable or not found, return "N/A".
-            - FOR "Filter Type": When Commodity Group is "CB", select STRICTLY ONE option from this valid list for the "value" field based on the datasheet specs: ["*BEAD*", "C-FILTER", "CM-CHOKE", "CM-FILTER", "LC-TP", "LC-TP-PI", "LC-TP-T", "RC-FILTER", "MODUL", "1PH-FILTER", "3PH-FILTER"]. If not found, return "N/A".
+            - FOR "Function": When applicable, select STRICTLY ONE option from this list for the "value" field based on the application text in the datasheet: ["Feed Through Filter", "Mains/Line/Power Filter", "Data Line Filter"]. If not applicable or not found, return "N/A".
+            - FOR "Filter Type": When applicable, select STRICTLY ONE option from this valid list for the "value" field based on the datasheet specs: ["*BEAD*", "C-FILTER", "CM-CHOKE", "CM-FILTER", "LC-TP", "LC-TP-PI", "LC-TP-T", "RC-FILTER", "MODUL", "1PH-FILTER", "3PH-FILTER"]. If not found, return "N/A".
             
             [GENERAL RULES]
             - FOR "Kind of Mounting": Select ONE: "SMT (surface-mounting technology)", "THR, PiP (through-hole technology)", "press-fit", "THW (through-hole technology)", "none".
@@ -217,7 +217,7 @@ if uploaded_file is not None or spec_file is not None:
                     progress_bar.progress(100, text="AI extraction complete!")
                     time.sleep(0.5)
                     progress_bar.empty()
-                    st.rerun() # Refresh untuk render UI di bawah
+                    st.rerun() 
                     break 
                     
                 except KeyError:
@@ -249,7 +249,6 @@ if uploaded_file is not None or spec_file is not None:
 # =====================================================================
 if st.session_state.raw_extracted_data:
     try:
-        # Gunakan deepcopy supaya data asal dalam memori tak diganggu bila kita .pop()
         extracted_data = copy.deepcopy(st.session_state.raw_extracted_data)
         
         def clean_na(val):
@@ -267,7 +266,6 @@ if st.session_state.raw_extracted_data:
         cat_dict = extracted_data.pop("Catalogue Group", {})
         catalogue_text = clean_na(cat_dict.get("value", "N/A") if isinstance(cat_dict, dict) else cat_dict)
         
-        # Ekstrak Commodity Group asal dari AI
         comm_dict = extracted_data.pop("Commodity Group", {})
         ai_commodity = clean_na(comm_dict.get("value", "N/A") if isinstance(comm_dict, dict) else comm_dict).upper()
 
@@ -297,8 +295,6 @@ if st.session_state.raw_extracted_data:
         }
         
         commodity_list = list(commodity_map.values())
-        
-        # Jika AI gagal cari atau teka salah, kita default kepada CC
         default_val = commodity_map.get(ai_commodity, commodity_map["CC"])
         default_idx = commodity_list.index(default_val)
         
@@ -308,7 +304,6 @@ if st.session_state.raw_extracted_data:
             index=default_idx
         )
         
-        # Ekstrak semula kod 2 huruf di depan (contoh: "CC") untuk logik jadual di bawah
         selected_commodity_code = selected_commodity_full.split(":")[0]
         
         # --- SELECTBOX UNTUK CATALOGUE GROUP ---
@@ -367,11 +362,17 @@ if st.session_state.raw_extracted_data:
         keys_library = ["Length [mm]", "Width [mm]", "Height (Max)", "Package Type (EIA)", "Pitch (Footprint) (mm)", "Number of Pins"]
         keys_processability = ["Kind of Mounting", "Washability", "Varnishability", "St. Solder (Standard Solder)", "Alt. Solder (Alternate Solder)", "Rep. Solder (Repair Solder)", "ESS Suitable", "Max Reflow Cycle (cycles)", "Max Reflow Time (s)", "Max Reflow Temp (°C)"]
         
-        # --- DYNAMIC TECH PARAMETER BASED ON SELECTED COMMODITY ---
-        if selected_commodity_code == "CB":
-            keys_techn = ["Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Voltage [V]", "Current [A]", "Inductance [H]", "Tolerance [%]", "Additional Information", "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Package Type", "Length [mm]", "Width [mm]", "Height [mm]", "Capacity [F]", "Resistance [Ohm]", "Impedance@MHz", "ImpMax@MHz [Hz]"]
-        elif selected_commodity_code == "CE":
+        # --- DYNAMIC TECH PARAMETER BASED ON SELECTED CATALOGUE GROUP ---
+        if selected_catalogue == "Capacitors fixed":
+            keys_techn = ["Capacity [F]", "Tolerance [%]", "Package Type", "Height [mm]", "Voltage [V]", "Description", "Surface", "Additional Information"]
+        elif selected_catalogue == "Capacitor Electrolyt":
             keys_techn = ["Capacity [F]", "Tolerance [%]", "Ripple Current", "Package Type", "Processing Technology", "Description", "Voltage [V]", "ESR [Ohm]", "Endurance [h/°C]", "Height [mm]"]
+        elif selected_catalogue == "Capacitor mech. adjustable":
+            keys_techn = ["C-Start [F]", "C-End [F]", "Voltage [V]", "Adjust from", "Description"]
+        elif selected_catalogue == "Capacitor electr. adjustable":
+            keys_techn = ["C-Start [F]", "C-End [F]", "Step size [F]", "Tolerance [%]", "Voltage [V]", "Package Type", "Description"]
+        elif selected_catalogue == "EMI-Filter (Feedthrough-, Mains-)":
+            keys_techn = ["Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Voltage [V]", "Current [A]", "Inductance [H]", "Tolerance [%]", "Additional Information", "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Package Type", "Length [mm]", "Width [mm]", "Height [mm]", "Capacity [F]", "Resistance [Ohm]", "Impedance@MHz", "ImpMax@MHz [Hz]"]
         else:
             keys_techn = ["Capacity [F]", "Tolerance [%]", "Package Type", "Height [mm]", "Voltage [V]", "Description", "Surface", "Additional Information"]
 
