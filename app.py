@@ -134,7 +134,7 @@ if uploaded_file is not None or spec_file is not None:
             - FOR ALL KEYS: Return a nested JSON object with three fields: "value", "evidence", and "page".
             - CRITICAL: If any information is missing or not found in the datasheet, strictly return "N/A" for the "value", "evidence", and "page" fields. Do NOT return null, None, or "unknown".
 
-          [CAPACITOR SPECIFIC RULES]
+            [CAPACITOR SPECIFIC RULES]
             - FOR "Commodity Group": Select strictly ONE from this list: CC, CD, CE, CG, CH, CK, CL, CM, CN, CP, CS, CT, CV, CX, CB. 
               (Hint: CC = miniature ceramic, CE = electrolytic, CG = mica, CK = film, CL = ceramic power, CS = suppression). If not found, return "N/A".
             - FOR "Catalogue Group": Select strictly ONE: "Capacitors fixed", "Capacitor Electrolyt", "Capacitor mech. adjustable", or "Capacitor electr. adjustable". If not found, return "N/A".
@@ -149,6 +149,7 @@ if uploaded_file is not None or spec_file is not None:
             - FOR "Package Type" and "Package Type (EIA)": Return the value EXACTLY in this format: EIA[Package EIA Size]*. For example, if the size is 0603, return "EIA0603*". Ensure both keys return this exact same formatted string.
             - FOR "Pitch_Calculation_Logic": 1) Identify the nominal Length (L) in mm. 2) Identify the nominal terminal size / termination band (T) in mm. 3) Output exactly in this format: "Formula: L - T" (e.g., "Formula: 1.60 - 0.35").
             - FOR "Pitch (Footprint) (mm)": Output "N/A" for the "value" field. For the "evidence" field, extract ONLY the exact formula string generated in "Pitch_Calculation_Logic" (e.g., "1.60 - 0.35").
+            - FOR "Height (Max)" and "Height [mm]": Treat "Thickness" or "Max Thickness" in the datasheet tables as Height. For example, size 0603 with thickness letter 'A' corresponds to a max thickness/height of 0.90 mm.
             
             [GENERAL RULES]
             - FOR "Kind of Mounting": Select ONE: "SMT (surface-mounting technology)", "THR, PiP (through-hole technology)", "press-fit", "THW (through-hole technology)", "none".
