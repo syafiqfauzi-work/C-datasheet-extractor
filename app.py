@@ -14,9 +14,7 @@ st.set_page_config(page_title="C* Datasheet Analyzer)", page_icon="📄", layout
 st.title("📄 C* Datasheet Analyzer")
 st.write("Upload a datasheet (PDF) and the AI will extract the key specifications.")
 
-file_path = __file__
-modified_timestamp = os.path.getmtime(file_path)
-last_update_date = datetime.fromtimestamp(modified_timestamp).strftime("%d/%m/%Y")
+last_update_date = "13/09/2026" # Manually update this whenever you push a new version
 st.write(f"Analyzer last update on: {last_update_date}.")
 
 # --- 2. INISIALISASI MEMORI (SESSION STATE) ---
