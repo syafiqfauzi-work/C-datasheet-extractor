@@ -116,7 +116,8 @@ if uploaded_file is not None or spec_file is not None:
             "Commodity Group", "Catalogue Group", "Manufacturer", "Designation",
             "Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", 
             "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)", 
-            "Length [mm]", "Width [mm]", "Height [mm]", "Height (Max)", "Package Type", "Package Type (EIA)", "Pitch (Footprint) (mm)",
+            "Length [mm]", "Width [mm]", "Height [mm]", "Height (Max)", "Package Type", "Package Type (EIA)", 
+            "Pitch_Calculation_Logic", "Pitch (Footprint) (mm)",
             "Capacity [F]", "Tolerance [%]", "Voltage [V]", "Description", "Surface", "Additional Information",
             "Function", "Attenuation [dB]", "f Nom. (Typ) [Hz]", "Current [A]", "Inductance [H]",
             "ImpMax [Ohm]", "Insertion Loss (Max) [dB]", "Filter Type", "Resistance [Ohm]",
@@ -146,6 +147,8 @@ if uploaded_file is not None or spec_file is not None:
             - FOR "Tolerance [%]": Extract the numeric tolerance percentage. Remove the '±' symbol (e.g., output "5", not "±5" or "J").
             - FOR "Voltage [V]": Extract the rated voltage.
             - FOR "Package Type" and "Package Type (EIA)": Return the value EXACTLY in this format: EIA[Package EIA Size]*. For example, if the size is 0603, return "EIA0603*". Ensure both keys return this exact same formatted string.
+            - FOR "Pitch_Calculation_Logic": 1) Identify the nominal Length (L) in mm. 2) Identify the nominal terminal size / termination band (T) in mm. 3) Output exactly in this format: "Formula: L - T" (e.g., "Formula: 1.60 - 0.35").
+            - FOR "Pitch (Footprint) (mm)": Output "N/A" for the "value" field. For the "evidence" field, extract ONLY the exact formula string generated in "Pitch_Calculation_Logic" (e.g., "1.60 - 0.35").
             
             [GENERAL RULES]
             - FOR "Kind of Mounting": Select ONE: "SMT (surface-mounting technology)", "THR, PiP (through-hole technology)", "press-fit", "THW (through-hole technology)", "none".
@@ -211,18 +214,25 @@ if uploaded_file is not None or spec_file is not None:
                     return "N/A"
                 return str(val)
 
-            # --- ASINGKAN HEADER INFO ---
-            designation_dict = extracted_data.pop("Designation", {})
-            designation_text = clean_na(designation_dict.get("value", "N/A") if isinstance(designation_dict, dict) else designation_dict).upper()
+           # --- PYTHON MATH OVERRIDE UNTUK PITCH ---
+            if "Pitch (Footprint) (mm)" in extracted_data:
+                pitch_item = extracted_data["Pitch (Footprint) (mm)"]
+                if isinstance(pitch_item, dict):
+                    calc_str = str(pitch_item.get("evidence", ""))
+                    if "-" in calc_str:
+                        try:
+                            # Bersihkan string jalan kerja
+                            clean_str = calc_str.replace("Formula:", "").strip(" ()")
+                            parts = clean_str.split("-")
+                            if len(parts) == 2:
+                                pitch_val = float(parts[0].strip()) - float(parts[1].strip())
+                                extracted_data["Pitch (Footprint) (mm)"]["value"] = str(round(pitch_val, 4))
+                                extracted_data["Pitch (Footprint) (mm)"]["evidence"] = f"{parts[0].strip()} - {parts[1].strip()}"
+                        except Exception:
+                            pass
             
-            mfg_dict = extracted_data.pop("Manufacturer", {})
-            manufacturer_text = clean_na(mfg_dict.get("value", "N/A") if isinstance(mfg_dict, dict) else mfg_dict)
-            
-            cat_dict = extracted_data.pop("Catalogue Group", {})
-            catalogue_text = clean_na(cat_dict.get("value", "N/A") if isinstance(cat_dict, dict) else cat_dict)
-            
-            comm_dict = extracted_data.pop("Commodity Group", {})
-            commodity_text = clean_na(comm_dict.get("value", "N/A") if isinstance(comm_dict, dict) else comm_dict)
+            # Buang kertas conteng AI dari paparan jadual UI
+            extracted_data.pop("Pitch_Calculation_Logic", None)
 
             st.success("Extraction Complete!")
             progress_bar.progress(100, text="Done!")
