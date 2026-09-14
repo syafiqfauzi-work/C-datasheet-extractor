@@ -141,6 +141,7 @@ if uploaded_file is not None or spec_file is not None:
             - FOR "Designation": Construct a string following EXACTLY this format: [Capacity] [Tolerance] [Voltage] [Description] [Package Type EIA]. 
               * Example: "100NF 10% 250V X7T 1210". Format the capacity properly (e.g. 100NF, 10UF). 
               * CRITICAL FOR TOLERANCE: For [Tolerance] in the Designation string, you MUST use the numeric percentage (e.g., 5%, 10%) and NEVER the letter code (e.g., J, K, M). Remove any '±' symbol (e.g., strictly use "5%", do not use "±5%" or "J"). Include the % and V symbols.
+              * CRITICAL FOR PACKAGE TYPE: For [Package Type EIA] inside this designation string, use ONLY the bare numeric code (e.g., 0603, 1210). Do NOT include the "EIA" prefix or the "*" asterisk.
             - FOR "Capacity [F]": Extract the nominal capacitance value with unit (e.g., 100nF, 10uF).
             - FOR "Tolerance [%]": Extract the numeric tolerance percentage. Remove the '±' symbol (e.g., output "5", not "±5" or "J").
             - FOR "Voltage [V]": Extract the rated voltage.
