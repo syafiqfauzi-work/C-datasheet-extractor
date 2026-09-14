@@ -154,6 +154,14 @@ if uploaded_file is not None or spec_file is not None:
             - FOR "Kind of Mounting": Select ONE: "SMT (surface-mounting technology)", "THR, PiP (through-hole technology)", "press-fit", "THW (through-hole technology)", "none".
             - FOR "St. Solder", "Alt. Solder", "Rep. Solder": Use standard options (reflow soldering top/bottom, wave soldering bottom, etc).
             - FOR REFLOW: Extract ONLY the raw nominal numerical value. Discard text/units.
+            - FOR "Washability" and "Varnishability": Determine the single letter code based on the Commodity Group and the following criteria. Return ONLY the letter in the "value" field:
+              * CB (Feedthrough), CH (Barrier-layer), CM (MP), CN (Networks), CP (Paper), CS (Suppression), CV (Vacuum): Washability="K", Varnishability="K".
+              * CD (Variable), CL (Power): Washability="N", Varnishability="N".
+              * CC (Ceramic): If SMD type -> Washability="W", Varnishability="L". If other types -> "K", "K".
+              * CE (Electrolytic): If without insulating cover/heat-shrinkable sleeve -> "W", "L". If all others -> "K", "K".
+              * CG (Mica): If Leaded types -> "W", "L". If SMD types -> "K", "K".
+              * CK (Plastic film): If SMD with coating -> "W", "L". If all others -> "K", "K".
+              * CT (Trimmer): If with sealing disk -> "K", "K". If all others -> "N", "N".
             
             Datasheet Text:
             -----------------
@@ -231,11 +239,13 @@ if uploaded_file is not None or spec_file is not None:
             if "Package Type" in extracted_data and isinstance(extracted_data["Package Type"], dict):
                 pkg_val = str(extracted_data["Package Type"].get("value", "")).strip()
                 if pkg_val and pkg_val != "N/A":
+                    # Bersihkan perkataan EIA dan tanda * jika ada (untuk elak duplicate)
                     clean_pkg = pkg_val.replace("EIA", "").replace("*", "").strip()
                     std_pkg = f"EIA{clean_pkg}*"
                     
                     extracted_data["Package Type"]["value"] = std_pkg
                     
+                    # Salin terus ke Package Type (EIA)
                     if "Package Type (EIA)" not in extracted_data or not isinstance(extracted_data["Package Type (EIA)"], dict):
                         extracted_data["Package Type (EIA)"] = {"value": "N/A", "evidence": "N/A", "page": "N/A"}
                     
@@ -275,24 +285,6 @@ if uploaded_file is not None or spec_file is not None:
             colA.caption(f"🏢 **Manufacturer:** {manufacturer_text}")
             colB.caption(f"📦 **Commodity Group:** {commodity_text}")
             colC.caption(f"📖 **Catalogue Group:** {catalogue_text}")
-
-            # --- STANDARDIZE PACKAGE TYPE FORMATTING ---
-            if "Package Type" in extracted_data and isinstance(extracted_data["Package Type"], dict):
-                pkg_val = str(extracted_data["Package Type"].get("value", "")).strip()
-                if pkg_val and pkg_val != "N/A":
-                    # Bersihkan perkataan EIA dan tanda * jika ada (untuk elak duplicate)
-                    clean_pkg = pkg_val.replace("EIA", "").replace("*", "").strip()
-                    std_pkg = f"EIA{clean_pkg}*"
-                    
-                    extracted_data["Package Type"]["value"] = std_pkg
-                    
-                    # Salin terus ke Package Type (EIA)
-                    if "Package Type (EIA)" not in extracted_data or not isinstance(extracted_data["Package Type (EIA)"], dict):
-                        extracted_data["Package Type (EIA)"] = {"value": "N/A", "evidence": "N/A", "page": "N/A"}
-                    
-                    extracted_data["Package Type (EIA)"]["value"] = std_pkg
-                    extracted_data["Package Type (EIA)"]["evidence"] = extracted_data["Package Type"].get("evidence", "N/A")
-                    extracted_data["Package Type (EIA)"]["page"] = extracted_data["Package Type"].get("page", "N/A")
             
             # --- DEFINISI KATEGORI ---
             keys_top = ["Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)"]
