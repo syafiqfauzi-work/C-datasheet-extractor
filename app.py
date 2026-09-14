@@ -159,9 +159,9 @@ if uploaded_file is not None or spec_file is not None:
             
             [GENERAL RULES]
             - FOR "Kind of Mounting": Select ONE: "SMT (surface-mounting technology)", "THR, PiP (through-hole technology)", "press-fit", "THW (through-hole technology)", "none".
-            - FOR "St. Solder (Standard Solder)": Select STRICTLY ONE option from this list: ["reflow soldering top / bottom", "reflow soldering top - only", "wave soldering bottom", "manually soldering / bonding", "no soldering"].
-            - FOR "Alt. Solder (Alternate Solder)": Select STRICTLY ONE option from this list: ["selective hot air soldering", "wave soldering bottom", "selective wave soldering", "manually soldering", "no soldering"].
-            - FOR "Rep. Solder (Repair Solder)": Select STRICTLY ONE option from this list: ["selective hot air soldering", "manually soldering", "no soldering"].
+            - FOR "St. Solder (Standard Solder)": Select STRICTLY ONE option from this list: ["R: reflow soldering top / bottom", "B: reflow soldering top - only", "W: wave soldering bottom", "H: manually soldering / bonding", "N: no soldering"].
+            - FOR "Alt. Solder (Alternate Solder)": Select STRICTLY ONE option from this list: ["L: selective hot air soldering", "W: wave soldering bottom", "T: selective wave soldering", "H: manually soldering", "N: no soldering"].
+            - FOR "Rep. Solder (Repair Solder)": Select STRICTLY ONE option from this list: ["L: selective hot air soldering", "H: manually soldering", "N: no soldering"].
             - FOR REFLOW: Extract ONLY the raw nominal numerical value. Discard text/units.
             - FOR "Washability" and "Varnishability": Determine the single letter code based on the Commodity Group and the following criteria. Return ONLY the letter in the "value" field:
               * CB (Feedthrough), CH (Barrier-layer), CM (MP), CN (Networks), CP (Paper), CS (Suppression), CV (Vacuum): Washability="K", Varnishability="K".
