@@ -144,6 +144,7 @@ if uploaded_file is not None or spec_file is not None:
             - FOR "Capacity [F]": Extract the nominal capacitance value with unit (e.g., 100nF, 10uF).
             - FOR "Tolerance [%]": Extract the numeric tolerance percentage. Remove the '±' symbol (e.g., output "5", not "±5" or "J").
             - FOR "Voltage [V]": Extract the rated voltage.
+            - FOR "Package Type" and "Package Type (EIA)": Return the value EXACTLY in this format: EIA[Package EIA Size]*. For example, if the size is 0603, return "EIA0603*". Ensure both keys return this exact same formatted string.
             
             [GENERAL RULES]
             - FOR "Kind of Mounting": Select ONE: "SMT (surface-mounting technology)", "THR, PiP (through-hole technology)", "press-fit", "THW (through-hole technology)", "none".
@@ -236,6 +237,24 @@ if uploaded_file is not None or spec_file is not None:
             colA.caption(f"🏢 **Manufacturer:** {manufacturer_text}")
             colB.caption(f"📦 **Commodity Group:** {commodity_text}")
             colC.caption(f"📖 **Catalogue Group:** {catalogue_text}")
+
+            # --- STANDARDIZE PACKAGE TYPE FORMATTING ---
+            if "Package Type" in extracted_data and isinstance(extracted_data["Package Type"], dict):
+                pkg_val = str(extracted_data["Package Type"].get("value", "")).strip()
+                if pkg_val and pkg_val != "N/A":
+                    # Bersihkan perkataan EIA dan tanda * jika ada (untuk elak duplicate)
+                    clean_pkg = pkg_val.replace("EIA", "").replace("*", "").strip()
+                    std_pkg = f"EIA{clean_pkg}*"
+                    
+                    extracted_data["Package Type"]["value"] = std_pkg
+                    
+                    # Salin terus ke Package Type (EIA)
+                    if "Package Type (EIA)" not in extracted_data or not isinstance(extracted_data["Package Type (EIA)"], dict):
+                        extracted_data["Package Type (EIA)"] = {"value": "N/A", "evidence": "N/A", "page": "N/A"}
+                    
+                    extracted_data["Package Type (EIA)"]["value"] = std_pkg
+                    extracted_data["Package Type (EIA)"]["evidence"] = extracted_data["Package Type"].get("evidence", "N/A")
+                    extracted_data["Package Type (EIA)"]["page"] = extracted_data["Package Type"].get("page", "N/A")
             
             # --- DEFINISI KATEGORI ---
             keys_top = ["Operating Temperature (Max) (°C)", "Operating Temperature (Min) (°C)", "Storage Temperature (Max) (°C)", "Storage Temperature (Min) (°C)"]
